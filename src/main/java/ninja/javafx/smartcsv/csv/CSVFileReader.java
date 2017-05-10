@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015 javafx.ninja <info@javafx.ninja>
+   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,6 @@ package ninja.javafx.smartcsv.csv;
 import ninja.javafx.smartcsv.FileReader;
 import ninja.javafx.smartcsv.fx.table.model.CSVModel;
 import ninja.javafx.smartcsv.fx.table.model.CSVRow;
-import org.springframework.stereotype.Service;
 import org.supercsv.io.CsvMapReader;
 import org.supercsv.io.ICsvMapReader;
 
@@ -60,7 +59,7 @@ public class CSVFileReader extends CSVConfigurable implements FileReader<CSVMode
             while ((customerMap = mapReader.read(header)) != null) {
                 CSVRow row = model.addRow();
                 for (String column : header) {
-                    row.addValue(column, customerMap.get(column));
+                    model.addValue(row, column, customerMap.get(column));
                 }
             }
 

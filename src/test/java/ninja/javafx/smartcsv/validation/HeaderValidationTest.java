@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015 javafx.ninja <info@javafx.ninja>                                              
+   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
                                                                                                                     
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@ package ninja.javafx.smartcsv.validation;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import ninja.javafx.smartcsv.validation.configuration.ValidationConfiguration;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -81,7 +82,7 @@ public class HeaderValidationTest {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     @Before
     public void initialize() {
-        sut = new Validator(config);
+        sut = new Validator(config, new TestColumnValueProvider());
     }
 
 
@@ -115,7 +116,21 @@ public class HeaderValidationTest {
     }
 
     public static String json(String... headerNames) {
-        return "{\"headers\":{\"list\":[" + asList(headerNames).stream().collect(joining(", ")) + "]}}";
+
+        String json = "{ \"fields\": [";
+
+        for (String headerName: headerNames) {
+            json += "{\"name\" : \""+headerName+"\" },";
+        }
+
+        if (headerNames != null && headerNames.length > 0) {
+            json = json.substring(0, json.length() - 1);
+        }
+
+        json += "]}";
+
+
+        return  json;
     }
 
 }

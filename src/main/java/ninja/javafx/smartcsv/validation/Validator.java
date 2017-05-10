@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015 javafx.ninja <info@javafx.ninja>
+   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -26,17 +26,19 @@
 
 package ninja.javafx.smartcsv.validation;
 
-import groovy.lang.Binding;
-import groovy.lang.GroovyShell;
-import groovy.lang.Script;
-import org.codehaus.groovy.control.CompilationFailedException;
+import ninja.javafx.smartcsv.fx.table.model.ColumnValueProvider;
+import ninja.javafx.smartcsv.validation.checker.*;
+import ninja.javafx.smartcsv.validation.configuration.Constraints;
+import ninja.javafx.smartcsv.validation.configuration.Field;
+import ninja.javafx.smartcsv.validation.configuration.ValidationConfiguration;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static java.util.stream.Collectors.joining;
-import static org.apache.commons.validator.GenericValidator.*;
+import static ninja.javafx.smartcsv.validation.ValidationFormatHelper.dateFormat;
+import static ninja.javafx.smartcsv.validation.configuration.StringFormat.*;
+import static ninja.javafx.smartcsv.validation.configuration.Type.*;
 
 /**
  * This class checks all the validations defined in the
@@ -49,9 +51,8 @@ public class Validator {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private ValidationConfiguration validationConfig;
-    private GroovyShell shell = new GroovyShell();
-    private Map<String, Script> scriptCache = new HashMap<>();
-
+    private ColumnValueProvider columnValueProvider;
+    private Map<String, Map<Validation.Type, Validation>> columnValidationMap = new HashMap<>();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // constructors
@@ -59,10 +60,13 @@ public class Validator {
 
     /**
      * JSON configuration for this validator
+     *
      * @param validationConfig
      */
-    public Validator(ValidationConfiguration validationConfig) {
-         this.validationConfig = validationConfig;
+    public Validator(ValidationConfiguration validationConfig, ColumnValueProvider columnValueProvider) {
+        this.validationConfig = validationConfig;
+        this.columnValueProvider = columnValueProvider;
+        initColumnValidations();
     }
 
 
@@ -70,30 +74,35 @@ public class Validator {
     // public methods
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public boolean needsColumnValidation(String column) {
+        Map<Validation.Type, Validation> validationMap = columnValidationMap.get(column);
+        if (validationMap != null) {
+            return validationMap.containsKey(Validation.Type.UNIQUE);
+        }
+        return false;
+
+    }
+
+
     /**
      * checks if the value is valid for the column configuration
+     *
      * @param column the column name
-     * @param value the value to check
+     * @param value  the value to check
      * @return ValidationError with information if valid and if not which getMessage happened
      */
-    public ValidationError isValid(String column, String value, Integer lineNumber) {
+    public ValidationError isValid(Integer row, String column, String value) {
         ValidationError result = null;
         if (hasConfig()) {
-
-            ValidationError error = ValidationError.withLineNumber(lineNumber);
-            checkBlankOrNull(column, value, error);
-            if (value != null && !value.isEmpty()) {
-                checkRegularExpression(column, value, error);
-                checkAlphaNumeric(column, value, error);
-                checkDate(column, value, error);
-                checkMaxLength(column, value, error);
-                checkMinLength(column, value, error);
-                checkInteger(column, value, error);
-                checkGroovy(column, value, error);
-                checkValueOf(column, value, error);
-                checkDouble(column, value, error);
+            ValidationError error = ValidationError.withLineNumber(row).column(column);
+            Map<Validation.Type, Validation> validationMap = columnValidationMap.get(column);
+            if (validationMap != null) {
+                for (Validation validation: validationMap.values()) {
+                    if (validation.canBeChecked(value)) {
+                        validation.check(row, value, error);
+                    }
+                }
             }
-
             if (!error.isEmpty()) {
                 result = error;
             }
@@ -101,127 +110,157 @@ public class Validator {
         return result;
     }
 
+
     public boolean hasConfig() {
         return validationConfig != null;
+    }
+
+    public void reinitializeColumn(String column) {
+        clear(column);
+        initializeColumnWithRules(column);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // private methods
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private void checkGroovy(String column, String value, ValidationError error) {
-        String groovyScript = validationConfig.getGroovyRuleFor(column);
-        if (groovyScript != null) {
+    private void add(String column, Validation validation) {
+        Map<Validation.Type, Validation> validationMap = columnValidationMap.get(column);
+        if (validationMap == null) {
+            validationMap = new HashMap<>();
+            columnValidationMap.put(column, validationMap);
+        }
+        validationMap.put(validation.getType(), validation);
+    }
 
-            Script script = scriptCache.get(column);
-            if (script == null) {
-                script = shell.parse(groovyScript);
-                scriptCache.put(column, script);
-            }
+    private void remove(String column, Validation.Type type) {
+        Map<Validation.Type, Validation> validationMap = columnValidationMap.get(column);
+        if (validationMap == null) {
+            validationMap = new HashMap<>();
+            columnValidationMap.put(column, validationMap);
+        }
+        validationMap.remove(type);
+    }
 
-            Binding binding = new Binding();
-            binding.setVariable("value", value);
-            script.setBinding(binding);
-
-            Object groovyResult = null;
-            try {
-                groovyResult = script.run();
-            } catch (CompilationFailedException e) {
-                error.add("validation.message.groovy.exception", groovyScript, e.getMessage());
-                e.printStackTrace();
-            }
-            if (groovyResult == null) {
-                error.add("validation.message.groovy.return.null", groovyScript);
-            }
-
-            if (!isScriptResultTrue(groovyResult)) {
-                error.add(groovyResult.toString());
-            }
-
+    private void clear(String column) {
+        Map<Validation.Type, Validation> validationMap = columnValidationMap.get(column);
+        if (validationMap != null) {
+            validationMap.clear();
         }
     }
 
-    private boolean isScriptResultTrue(Object groovyResult) {
-        return groovyResult.equals(true) || groovyResult.toString().trim().toLowerCase().equals("true");
-    }
-
-    private void checkValueOf(String column, String value, ValidationError error) {
-        List<String> values = validationConfig.getValueOfRuleFor(column);
-        if (values != null) {
-            if (!values.contains(value)) {
-                String commaSeparated = values.stream().collect(joining(", "));
-                error.add("validation.message.value.of", value, commaSeparated);
+    private void initColumnValidations() {
+        if (hasConfig()) {
+            for (Field column : validationConfig.getFields()) {
+                initializeColumnWithRules(column);
             }
         }
     }
 
-    private void checkBlankOrNull(String column, String value, ValidationError error) {
-        if (validationConfig.getNotEmptyRuleFor(column) != null && validationConfig.getNotEmptyRuleFor(column)) {
-            if (isBlankOrNull(value)) {
-                error.add("validation.message.not.empty");
+    private void initializeColumnWithRules(String columnName) {
+        if (hasConfig()) {
+            for (Field column : validationConfig.getFields()) {
+                if (column.getName().equals(columnName)) {
+                    initializeColumnWithRules(column);
+                    break;
+                }
+            }
+        }
+
+    }
+
+    private void initializeColumnWithRules(Field column) {
+
+        if (column.getType() != null) {
+            if (column.getType() == NUMBER) {
+                add(column.getName(), new DoubleValidation());
+            }
+
+            if (column.getType() == INTEGER) {
+                add(column.getName(), new IntegerValidation());
+            }
+
+            if (column.getType() == DATE) {
+                String format = dateFormat(column.getFormat(), "yyyy-MM-dd");
+                add(column.getName(), new DateValidation(format));
+            }
+
+            if (column.getType() == DATETIME) {
+                String format = dateFormat(column.getFormat(), "yyyy-MM-ddThh:mm:ssZ");
+                add(column.getName(), new DateValidation(format));
+            }
+
+            if (column.getType() == TIME) {
+                String format = dateFormat(column.getFormat(), "hh:mm:ss");
+                add(column.getName(), new DateValidation(format));
+            }
+
+            if (column.getType() == STRING && column.getFormat() == null) {
+                remove(column.getName(), Validation.Type.STRING);
+            } else {
+
+                if (column.getType() == STRING && column.getFormat().equalsIgnoreCase(EMAIL.getExternalValue())) {
+                    add(column.getName(), new EmailValidation());
+                }
+
+                if (column.getType() == STRING && column.getFormat().equalsIgnoreCase(URI.getExternalValue())) {
+                    add(column.getName(), new UriValidation());
+                }
+
+                if (column.getType() == STRING && column.getFormat().equalsIgnoreCase(UUID.getExternalValue())) {
+                    add(column.getName(), new UuidValidation());
+                }
+
+                if (column.getType() == STRING && column.getFormat().equalsIgnoreCase(BINARY.getExternalValue())) {
+                    add(column.getName(), new BinaryValidation());
+                }
+
+            }
+        }
+
+        String groovy = column.getGroovy();
+        if (groovy != null && !groovy.trim().isEmpty()) {
+            add(column.getName(), new GroovyValidation(groovy));
+        }
+
+        Constraints constraints = column.getConstraints();
+        if (constraints != null) {
+            Boolean notEmptyRule = constraints.getRequired();
+            if (notEmptyRule != null && notEmptyRule) {
+                add(column.getName(), new NotEmptyValidation());
+            }
+
+            Boolean uniqueRule = constraints.getUnique();
+            if (uniqueRule != null && uniqueRule) {
+                add(column.getName(), new UniqueValidation(columnValueProvider, column.getName()));
+            }
+
+            Integer minLength = constraints.getMinLength();
+            if (minLength != null) {
+                add(column.getName(), new MinLengthValidation(minLength));
+            }
+
+            Integer maxLength = constraints.getMaxLength();
+            if (maxLength != null) {
+                add(column.getName(), new MaxLengthValidation(maxLength));
+            }
+
+            String regexp = constraints.getPattern();
+            if (regexp != null && !regexp.trim().isEmpty()) {
+                add(column.getName(), new RegExpValidation(regexp));
+            }
+
+
+
+            List<String> valueOfRule =  constraints.getEnumeration();
+            if (valueOfRule != null && !valueOfRule.isEmpty()) {
+                add(column.getName(), new ValueOfValidation(valueOfRule));
             }
         }
     }
 
-    private void checkInteger(String column, String value, ValidationError error) {
-        if (validationConfig.getIntegerRuleFor(column) != null && validationConfig.getIntegerRuleFor(column)) {
-            if (!isInt(value)) {
-                error.add("validation.message.integer");
-            }
-        }
-    }
 
-    private void checkDouble(String column, String value, ValidationError error) {
-        if (validationConfig.getDoubleRuleFor(column) != null && validationConfig.getDoubleRuleFor(column)) {
-            if (!isDouble(value)) {
-                error.add("validation.message.double");
-            }
-        }
-    }
 
-    private void checkMinLength(String column, String value, ValidationError error) {
-        Integer minLength = validationConfig.getMinLengthRuleFor(column);
-        if (minLength != null) {
-            if (!minLength(value, minLength)) {
-                error.add("validation.message.min.length", minLength.toString());
-            }
-        }
-    }
-
-    private void checkMaxLength(String column, String value, ValidationError error) {
-        Integer maxLength = validationConfig.getMaxLengthRuleFor(column);
-        if (maxLength != null) {
-            if (!maxLength(value, maxLength)) {
-                error.add("validation.message.max.length", maxLength.toString());
-            }
-        }
-    }
-
-    private void checkDate(String column, String value, ValidationError error) {
-        String dateformat = validationConfig.getDateRuleFor(column);
-        if (dateformat != null && !dateformat.trim().isEmpty()) {
-            if (!isDate(value, dateformat, true)) {
-                error.add("validation.message.date.format", dateformat);
-            }
-        }
-    }
-
-    private void checkAlphaNumeric(String column, String value, ValidationError error) {
-        if (validationConfig.getAlphanumericRuleFor(column) != null && validationConfig.getAlphanumericRuleFor(column)) {
-            if (!matchRegexp(value, "[0-9a-zA-Z]*")) {
-                error.add("validation.message.alphanumeric");
-            }
-        }
-    }
-
-    private void checkRegularExpression(String column, String value, ValidationError error) {
-        String regexp = validationConfig.getRegexpRuleFor(column);
-        if (regexp != null && !regexp.trim().isEmpty()) {
-            if (!matchRegexp(value, regexp)) {
-                error.add("validation.message.regexp", regexp);
-            }
-        }
-    }
 
     public ValidationError isHeaderValid(String[] headerNames) {
         ValidationError result = null;
@@ -237,7 +276,7 @@ public class Validator {
 
                 ValidationError error = ValidationError.withoutLineNumber();
 
-                for(int i=0; i<headerNamesConfig.length; i++) {
+                for (int i = 0; i < headerNamesConfig.length; i++) {
                     if (!headerNamesConfig[i].equals(headerNames[i])) {
                         error.add("validation.message.header.match",
                                 Integer.toString(i),
@@ -253,7 +292,5 @@ public class Validator {
         return result;
     }
 
-    public void clearScriptCache() {
-        scriptCache.clear();
-    }
+
 }

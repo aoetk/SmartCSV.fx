@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015 javafx.ninja <info@javafx.ninja>
+   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 
 package ninja.javafx.smartcsv.fx;
 
+import javafx.beans.binding.Bindings;
 import javafx.collections.ListChangeListener;
 import javafx.collections.WeakListChangeListener;
 import javafx.concurrent.WorkerStateEvent;
@@ -39,9 +40,11 @@ import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
 import ninja.javafx.smartcsv.csv.CSVFileReader;
 import ninja.javafx.smartcsv.csv.CSVFileWriter;
+import ninja.javafx.smartcsv.export.ErrorExport;
 import ninja.javafx.smartcsv.files.FileStorage;
 import ninja.javafx.smartcsv.fx.about.AboutController;
 import ninja.javafx.smartcsv.fx.list.ErrorSideBar;
+import ninja.javafx.smartcsv.fx.list.GotoLineDialog;
 import ninja.javafx.smartcsv.fx.preferences.PreferencesController;
 import ninja.javafx.smartcsv.fx.table.ObservableMapValueFactory;
 import ninja.javafx.smartcsv.fx.table.ValidationCellFactory;
@@ -53,7 +56,7 @@ import ninja.javafx.smartcsv.fx.util.SaveFileService;
 import ninja.javafx.smartcsv.fx.validation.ValidationEditorController;
 import ninja.javafx.smartcsv.preferences.PreferencesFileReader;
 import ninja.javafx.smartcsv.preferences.PreferencesFileWriter;
-import ninja.javafx.smartcsv.validation.ValidationConfiguration;
+import ninja.javafx.smartcsv.validation.configuration.ValidationConfiguration;
 import ninja.javafx.smartcsv.validation.ValidationError;
 import ninja.javafx.smartcsv.validation.ValidationFileReader;
 import ninja.javafx.smartcsv.validation.ValidationFileWriter;
@@ -94,6 +97,9 @@ public class SmartCSVController extends FXMLController {
     public static final String CSV_FILTER_EXTENSION = "*.csv";
     public static final String JSON_FILTER_TEXT = "JSON files (*.json)";
     public static final String JSON_FILTER_EXTENSION = "*.json";
+    public static final String EXPORT_LOG_FILTER_TEXT = "Error log files (*.log)";
+    public static final String EXPORT_LOG_FILTER_EXTENSION = "*.log";
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // injections
@@ -113,6 +119,9 @@ public class SmartCSVController extends FXMLController {
 
     @Autowired
     private SaveFileService saveFileService;
+
+    @Autowired
+    private ErrorExport errorExport;
 
     @FXML
     private BorderPane applicationPane;
@@ -154,6 +163,12 @@ public class SmartCSVController extends FXMLController {
     private MenuItem addRowMenuItem;
 
     @FXML
+    private MenuItem gotoLineMenuItem;
+
+    @FXML
+    private MenuItem exportMenuItem;
+
+    @FXML
     private Button saveButton;
 
     @FXML
@@ -177,6 +192,12 @@ public class SmartCSVController extends FXMLController {
     @FXML
     private Button addRowButton;
 
+    @FXML
+    private Button exportButton;
+
+    @FXML
+    private Label currentLineNumber;
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // members
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,8 +207,10 @@ public class SmartCSVController extends FXMLController {
     private TableView<CSVRow> tableView;
     private ErrorSideBar errorSideBar;
     private ResourceBundle resourceBundle;
+    private CSVFileReader csvFileReader = new CSVFileReader();
+    private CSVFileWriter csvFileWriter = new CSVFileWriter();
 
-    private FileStorage<CSVModel> currentCsvFile = new FileStorage<>(new CSVFileReader(), new CSVFileWriter());
+    private FileStorage<CSVModel> currentCsvFile = new FileStorage<>(csvFileReader, csvFileWriter);
     private FileStorage<ValidationConfiguration> currentConfigFile = new FileStorage<>(new ValidationFileReader(), new ValidationFileWriter());
     private FileStorage<CsvPreference> csvPreferenceFile = new FileStorage<>(new PreferencesFileReader(), new PreferencesFileWriter());
 
@@ -205,7 +228,7 @@ public class SmartCSVController extends FXMLController {
         setupTableCellFactory();
         setupErrorSideBar(resourceBundle);
 
-        bindMenuItemsToContentExistence(currentCsvFile, saveMenuItem, saveAsMenuItem, addRowMenuItem, createConfigMenuItem, loadConfigMenuItem);
+        bindMenuItemsToContentExistence(currentCsvFile, saveMenuItem, saveAsMenuItem, addRowMenuItem, gotoLineMenuItem, createConfigMenuItem, loadConfigMenuItem);
         bindButtonsToContentExistence(currentCsvFile, saveButton, saveAsButton, addRowButton, createConfigButton, loadConfigButton);
 
         bindMenuItemsToContentExistence(currentConfigFile, saveConfigMenuItem, saveAsConfigMenuItem);
@@ -338,12 +361,49 @@ public class SmartCSVController extends FXMLController {
     public void addRow(ActionEvent actionEvent) {
         CSVRow row = currentCsvFile.getContent().addRow();
         for (String column : currentCsvFile.getContent().getHeader()) {
-            row.addValue(column, "");
+            currentCsvFile.getContent().addValue(row, column, "");
         }
         currentCsvFile.setFileChanged(true);
         resetContent();
 
         selectNewRow();
+    }
+
+    @FXML
+    public void gotoLine(ActionEvent actionEvent) {
+        int maxLineNumber = currentCsvFile.getContent().getRows().size();
+        GotoLineDialog dialog = new GotoLineDialog(maxLineNumber);
+        dialog.setTitle(resourceBundle.getString("dialog.goto.line.title"));
+        dialog.setHeaderText(format(resourceBundle.getString("dialog.goto.line.header.text"), maxLineNumber));
+        dialog.setContentText(resourceBundle.getString("dialog.goto.line.label"));
+        Optional<Integer> result = dialog.showAndWait();
+        if (result.isPresent()){
+            Integer lineNumber = result.get();
+            if (lineNumber != null) {
+                tableView.scrollTo(max(0, lineNumber - 2));
+                tableView.getSelectionModel().select(lineNumber - 1);
+            }
+        }
+    }
+
+    @FXML
+    public void export(ActionEvent actionEvent) {
+        final FileChooser fileChooser = new FileChooser();
+
+        //Set extension filter
+        final FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(EXPORT_LOG_FILTER_TEXT, EXPORT_LOG_FILTER_EXTENSION);
+        fileChooser.getExtensionFilters().add(extFilter);
+        fileChooser.setTitle("Save");
+
+        //Show open file dialog
+        File file = fileChooser.showSaveDialog(applicationPane.getScene().getWindow());
+        if (file != null) {
+            errorExport.setCsvFilename(currentCsvFile.getFile().getName());
+            errorExport.setModel(currentCsvFile.getContent());
+            errorExport.setFile(file);
+            errorExport.setResourceBundle(resourceBundle);
+            errorExport.restart();
+        }
     }
 
     public boolean canExit() {
@@ -365,6 +425,7 @@ public class SmartCSVController extends FXMLController {
 
     public void showValidationEditor(String column) {
         validationEditorController.setSelectedColumn(column);
+        validationEditorController.updateForm();
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setGraphic(null);
@@ -377,7 +438,7 @@ public class SmartCSVController extends FXMLController {
             runLater(() -> {
                 validationEditorController.updateConfiguration();
                 currentCsvFile.setFileChanged(true);
-                currentCsvFile.getContent().revalidate();
+                currentCsvFile.getContent().revalidate(column);
             });
         }
     }
@@ -425,6 +486,10 @@ public class SmartCSVController extends FXMLController {
         configurationName.textProperty().bind(selectString(currentConfigFile.fileProperty(), "name"));
     }
 
+    private void bindLineNumber() {
+        currentLineNumber.textProperty().bind(tableView.getSelectionModel().selectedIndexProperty().add(1).asString());
+    }
+
     private void loadCsvPreferencesFromFile() {
         if (csvPreferenceFile.getFile().exists()) {
             useLoadFileService(csvPreferenceFile, event -> setCsvPreference(csvPreferenceFile.getContent()));
@@ -458,6 +523,9 @@ public class SmartCSVController extends FXMLController {
 
     private void setCsvPreference(CsvPreference csvPreference) {
         preferencesController.setCsvPreference(csvPreference);
+        csvFileReader.setCsvPreference(csvPreference);
+        csvFileWriter.setCsvPreference(csvPreference);
+
     }
 
     private void loadFile(String filterText,
@@ -524,11 +592,14 @@ public class SmartCSVController extends FXMLController {
      * Creates new table view and add the new content
      */
     private void resetContent() {
+        resetExportButtons();
+
         if (currentCsvFile.getContent() != null) {
             currentCsvFile.getContent().getValidationError().addListener(weakErrorListListener);
             currentCsvFile.getContent().setValidationConfiguration(currentConfigFile.getContent());
             validationEditorController.setValidationConfiguration(currentConfigFile.getContent());
             tableView = new TableView<>();
+            bindLineNumber();
 
             bindMenuItemsToTableSelection(deleteRowMenuItem);
             bindButtonsToTableSelection(deleteRowButton);
@@ -546,7 +617,20 @@ public class SmartCSVController extends FXMLController {
             setRightAnchor(tableView, 0.0);
             tableWrapper.getChildren().setAll(tableView);
             errorSideBar.setModel(currentCsvFile.getContent());
+            binExportButtons();
         }
+    }
+
+    private void binExportButtons() {
+        exportButton.disableProperty().bind(Bindings.isEmpty(currentCsvFile.getContent().getValidationError()));
+        exportMenuItem.disableProperty().bind(Bindings.isEmpty(currentCsvFile.getContent().getValidationError()));
+    }
+
+    private void resetExportButtons() {
+        exportButton.disableProperty().unbind();
+        exportMenuItem.disableProperty().unbind();
+        exportButton.disableProperty().setValue(true);
+        exportMenuItem.disableProperty().setValue(true);
     }
 
     /**
@@ -554,7 +638,7 @@ public class SmartCSVController extends FXMLController {
      * @param header name of the column header
      * @param tableView the tableview
      */
-    private void addColumn(String header, TableView tableView) {
+    private void addColumn(final String header, TableView tableView) {
         TableColumn column = new TableColumn(header);
         column.setCellValueFactory(new ObservableMapValueFactory(header));
         column.setCellFactory(cellFactory);
@@ -571,7 +655,6 @@ public class SmartCSVController extends FXMLController {
                 getColumns().get(header).setValue(event.getNewValue());
                 runLater(() -> {
                     currentCsvFile.setFileChanged(true);
-                    currentCsvFile.getContent().revalidate();
                 });
             }
         });

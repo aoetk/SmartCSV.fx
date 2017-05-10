@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015 javafx.ninja <info@javafx.ninja>
+   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,7 @@ public class ValidationError {
 
     private List<ValidationMessage> messages = new ArrayList<>();
     private Integer lineNumber;
+    private String column = "";
 
     private ValidationError(Integer lineNumber) {
         this.lineNumber = lineNumber;
@@ -51,8 +52,17 @@ public class ValidationError {
         return new ValidationError(-1);
     }
 
+    public ValidationError column(String column) {
+        this.column = column;
+        return this;
+    }
+
     public Integer getLineNumber() {
         return lineNumber;
+    }
+
+    public String getColumn() {
+        return column;
     }
 
     public List<ValidationMessage> getMessages() {

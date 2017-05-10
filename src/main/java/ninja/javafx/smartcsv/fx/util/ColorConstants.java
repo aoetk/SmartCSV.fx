@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015 javafx.ninja <info@javafx.ninja>                                              
+   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
                                                                                                                     
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -31,5 +31,5 @@ package ninja.javafx.smartcsv.fx.util;
  */
 public class ColorConstants {
     public static final String OK_COLOR = "#22aa22";
-    public static final String ERROR_COLOR = "#ff6622";
+    public static final String ERROR_COLOR = "#ff3333";
 }

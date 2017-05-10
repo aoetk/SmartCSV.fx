@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015 javafx.ninja <info@javafx.ninja>                                              
+   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
                                                                                                                     
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,6 @@ package ninja.javafx.smartcsv.preferences;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import ninja.javafx.smartcsv.FileWriter;
-import org.springframework.stereotype.Service;
 import org.supercsv.prefs.CsvPreference;
 
 import java.io.File;

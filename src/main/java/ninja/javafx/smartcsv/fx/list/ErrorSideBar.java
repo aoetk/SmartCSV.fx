@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015 javafx.ninja <info@javafx.ninja>                                              
+   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
                                                                                                                     
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import ninja.javafx.smartcsv.fx.table.model.CSVModel;
-import ninja.javafx.smartcsv.fx.util.ColorConstants;
 import ninja.javafx.smartcsv.validation.ValidationError;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -49,7 +48,7 @@ import java.util.ResourceBundle;
 import static javafx.geometry.Pos.CENTER;
 import static ninja.javafx.smartcsv.fx.util.ColorConstants.ERROR_COLOR;
 import static ninja.javafx.smartcsv.fx.util.ColorConstants.OK_COLOR;
-import static ninja.javafx.smartcsv.fx.util.I18nValidationUtil.getI18nValidatioMessage;
+import static ninja.javafx.smartcsv.fx.util.I18nValidationUtil.getI18nValidatioMessageWithColumn;
 
 /**
  * clickable side bar with error markers
@@ -138,9 +137,7 @@ public class ErrorSideBar extends Region {
 
                 int rows = model.get().getRows().size();
                 double space = (double)heightWithoutStatusBlock() / rows;
-                for (ValidationError error : errorList) {
-                    errorMarkerList.add(generateErrorMarker(space, error));
-                }
+                errorList.forEach(error -> errorMarkerList.add(generateErrorMarker(space, error)));
             }
         }
         getChildren().setAll(errorMarkerList);
@@ -159,7 +156,7 @@ public class ErrorSideBar extends Region {
         errorMarker.setStyle("-fx-background-color: " + ERROR_COLOR);
         errorMarker.setOnMouseClicked(event -> selectedValidationError.setValue(error));
         errorMarker.setOnMouseEntered(event -> {
-            popOver.setContentNode(popupContent(getI18nValidatioMessage(resourceBundle, error)));
+            popOver.setContentNode(popupContent(getI18nValidatioMessageWithColumn(resourceBundle, error)));
             popOver.show(errorMarker, -16);
         });
         return errorMarker;
