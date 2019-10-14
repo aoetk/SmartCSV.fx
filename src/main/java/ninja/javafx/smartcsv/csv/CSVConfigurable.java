@@ -35,6 +35,8 @@ public class CSVConfigurable {
 
     protected CsvPreference csvPreference;
 
+    protected String fileEncoding;
+
     public CSVConfigurable() {
         csvPreference = CsvPreference.EXCEL_NORTH_EUROPE_PREFERENCE;
     }
@@ -42,4 +44,9 @@ public class CSVConfigurable {
     public void setCsvPreference(CsvPreference csvPreference) {
         this.csvPreference = csvPreference;
     }
+
+    public void setFileEncoding(String fileEncoding) {
+        this.fileEncoding = fileEncoding;
+    }
+
 }

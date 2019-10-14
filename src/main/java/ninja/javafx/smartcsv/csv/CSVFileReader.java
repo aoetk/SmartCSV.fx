@@ -34,6 +34,7 @@ import org.supercsv.io.ICsvMapReader;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Map;
 
 /**
@@ -48,7 +49,8 @@ public class CSVFileReader extends CSVConfigurable implements FileReader<CSVMode
 
         ICsvMapReader mapReader = null;
         try {
-            mapReader = new CsvMapReader(new java.io.FileReader(file.getAbsoluteFile()), csvPreference);
+            mapReader = new CsvMapReader(new java.io.FileReader(file.getAbsoluteFile(), Charset.forName(fileEncoding)),
+                    csvPreference);
             model = new CSVModel();
 
             // the header columns are used as the keys to the Map

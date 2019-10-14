@@ -122,6 +122,14 @@ public class PreferencesController extends FXMLController {
                 .build();
     }
 
+    public void setFileEncoding(String fileEncoding) {
+        this.fileEncoding.setValue(fileEncoding);
+    }
+
+    public String getFileEncoding() {
+        return fileEncoding.getValue();
+    }
+
     public boolean getValid() {
         return valid.get();
     }
