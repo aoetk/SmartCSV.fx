@@ -225,8 +225,6 @@ public class SmartCSVController extends FXMLController {
     private ListChangeListener<ValidationError> errorListListener = c -> tableView.refresh();
     private WeakListChangeListener<ValidationError> weakErrorListListener = new WeakListChangeListener<>(errorListListener);
 
-    private boolean aBoolean;
-
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // init
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -251,7 +249,6 @@ public class SmartCSVController extends FXMLController {
         fileEncodingFile.setFile(ENCODING_FILE);
 
         loadCsvPreferencesFromFile();
-        loadEncodingFromFile();
     }
 
     private void loadEncodingFromFile() {
@@ -539,9 +536,13 @@ public class SmartCSVController extends FXMLController {
 
     private void loadCsvPreferencesFromFile() {
         if (csvPreferenceFile.getFile().exists()) {
-            useLoadFileService(csvPreferenceFile, event -> setCsvPreference(csvPreferenceFile.getContent()));
+            useLoadFileService(csvPreferenceFile, event -> {
+                setCsvPreference(csvPreferenceFile.getContent());
+                loadEncodingFromFile();
+            });
         } else {
             setCsvPreference(CsvPreference.EXCEL_NORTH_EUROPE_PREFERENCE);
+            loadEncodingFromFile();
         }
     }
 
