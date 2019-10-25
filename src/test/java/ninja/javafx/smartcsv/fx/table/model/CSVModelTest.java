@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
+   Copyright (c) 2015-2019 javafx.ninja <info@javafx.ninja>
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@
 
 package ninja.javafx.smartcsv.fx.table.model;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
@@ -39,14 +39,13 @@ public class CSVModelTest {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // constants
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    static final String TESTHEADER = "TESTHEADER";
-    static final String TESTVALUE = "TESTVALUE";
-    static final String FILEPATH = "filepath";
+    private static final String TESTHEADER = "TESTHEADER";
+    private static final String TESTVALUE = "TESTVALUE";
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // subject under test
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    CSVModel sut = new CSVModel();
+    private CSVModel sut = new CSVModel();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // tests

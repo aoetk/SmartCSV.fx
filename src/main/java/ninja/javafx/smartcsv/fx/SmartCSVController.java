@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
+   Copyright (c) 2015-2019 javafx.ninja <info@javafx.ninja>
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 
 package ninja.javafx.smartcsv.fx;
 
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.collections.ListChangeListener;
 import javafx.collections.WeakListChangeListener;
@@ -55,10 +56,10 @@ import ninja.javafx.smartcsv.fx.util.LoadFileService;
 import ninja.javafx.smartcsv.fx.util.SaveFileService;
 import ninja.javafx.smartcsv.fx.validation.ValidationEditorController;
 import ninja.javafx.smartcsv.preferences.*;
-import ninja.javafx.smartcsv.validation.configuration.ValidationConfiguration;
 import ninja.javafx.smartcsv.validation.ValidationError;
 import ninja.javafx.smartcsv.validation.ValidationFileReader;
 import ninja.javafx.smartcsv.validation.ValidationFileWriter;
+import ninja.javafx.smartcsv.validation.configuration.ValidationConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -655,6 +656,10 @@ public class SmartCSVController extends FXMLController {
             for (String column : currentCsvFile.getContent().getHeader()) {
                 addColumn(column, tableView);
             }
+
+            tableView.getColumns().addListener(
+                    (InvalidationListener) observable -> currentCsvFile.getContent().setHeader(
+                            tableView.getColumns().stream().map((x) -> x.getText()).toArray(String[]::new)));
 
             tableView.getItems().setAll(currentCsvFile.getContent().getRows());
             tableView.setEditable(true);

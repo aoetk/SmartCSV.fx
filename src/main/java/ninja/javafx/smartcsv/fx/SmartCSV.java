@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
+   Copyright (c) 2015-2019 javafx.ninja <info@javafx.ninja>
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import ninja.javafx.smartcsv.fx.about.AboutController;
 import org.springframework.context.annotation.*;
@@ -87,6 +88,7 @@ public class SmartCSV extends Application {
 
         primaryStage.setScene(scene);
         primaryStage.setTitle(String.format("%s %s", name, version));
+        primaryStage.getIcons().add(new Image(SmartCSV.class.getResourceAsStream("/ninja/javafx/smartcsv/icon/logo.png")));
         primaryStage.show();
         primaryStage.setMaximized(true);
 

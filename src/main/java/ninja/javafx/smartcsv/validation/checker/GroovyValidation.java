@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
+   Copyright (c) 2015-2019 javafx.ninja <info@javafx.ninja>
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -37,11 +37,11 @@ import org.codehaus.groovy.control.CompilationFailedException;
 public class GroovyValidation extends EmptyValueIsValid {
 
     private String groovyScript;
-    private GroovyShell shell = new GroovyShell();
     private Script script;
 
     public GroovyValidation(String groovyScript) {
         this.groovyScript = groovyScript;
+        GroovyShell shell = new GroovyShell();
         script = shell.parse(groovyScript);
     }
 

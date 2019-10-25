@@ -2,7 +2,7 @@
    The MIT License (MIT)
    -----------------------------------------------------------------------------
 
-   Copyright (c) 2015-2016 javafx.ninja <info@javafx.ninja>
+   Copyright (c) 2015-2019 javafx.ninja <info@javafx.ninja>
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -39,18 +39,19 @@ public class CharsetHelperTest {
     public void getCharsetName_known_charset() {
         String result = CharsetHelper.getCharsetName("UTF-16");
         assertEquals(StandardCharsets.UTF_16.name(), result);
+        assertNotEquals(StandardCharsets.UTF_16.name(), Charset.defaultCharset());
     }
 
     @Test
     public void getCharsetName_unknown_charset() {
         String result = CharsetHelper.getCharsetName("foobar");
-        assertEquals(StandardCharsets.UTF_8.name(), result);
+        assertEquals(Charset.defaultCharset().name(), result);
     }
 
     @Test
     public void getCharsetName_null_charset() {
         String result = CharsetHelper.getCharsetName(null);
-        assertEquals(StandardCharsets.UTF_8.name(), result);
+        assertEquals(Charset.defaultCharset().name(), result);
     }
 
 }
